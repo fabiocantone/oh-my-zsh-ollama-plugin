@@ -100,8 +100,7 @@ _ollama_check_error() {
   fi
 
   # Ask the user if they want a solution
-  printf "🤖 Error detected (exit code $exit_code). Want a solution using $OLLAMA_DEFAULT_MODEL? [y/N] "
-  read -r REPLY
+  read -q "REPLY?🤖 Error detected (exit code $exit_code). Want a solution using $OLLAMA_DEFAULT_MODEL? [y/N]"
   echo
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     return
