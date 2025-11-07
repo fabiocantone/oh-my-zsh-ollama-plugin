@@ -100,7 +100,7 @@ _ollama_check_error() {
   echo "🔍 Analyzing command: '$OLLAMA_LAST_COMMAND'..."
   
   # Build a specific prompt for the AI
-  local prompt="The shell command '$OLLAMA_LAST_COMMAND' failed with exit code $exit_code. Explain the likely error in one short sentence, then provide a single-line shell command to fix it. Format your response like this:\nEXPLANATION: <your explanation>\nCOMMAND: <the command>"
+  local prompt="The shell command '$OLLAMA_LAST_COMMAND' failed with exit code $exit_code. Explain the likely error in one short sentence, then provide a single-line shell command to fix it. Format your response like this:\\nEXPLANATION: <your explanation>\\nCOMMAND: <the command>"
   
   # Call Ollama and capture the response
   local response
