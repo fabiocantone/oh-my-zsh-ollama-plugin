@@ -27,7 +27,20 @@ _ollama_models() {
 
 # Function to filter out "Thinking..." sections from Ollama output
 _ollama_filter_thinking() {
-  sed '/^Thinking\.\.\.$/,/^\.\.\.done thinking\.$/d'
+  # Remove job control messages (e.g., [2] 2691328)
+  sed '/^\[[0-9]\+\] [0-9]\+$/d' | \
+  # Remove job completion messages (e.g., [2]  + 2691328 done ...)
+  sed '/^\[[0-9]\+\]  \+[0-9]\+ done/d' | \
+  # Use awk to remove everything between "Thinking..." and "...done thinking."
+  awk '
+    BEGIN { in_thinking = 0 }
+    /^[Tt]hinking/ { in_thinking = 1; next }
+    /\.\.\.done thinking\./ { in_thinking = 0; next }
+    in_thinking == 0 { print }
+  ' | \
+  # Remove any remaining lines that contain "Thinking" or "done thinking"
+  sed '/[Tt]hinking/d' | \
+  sed '/done thinking/d'
 }
 
 # Function to format Ollama response (remove markdown formatting)
@@ -87,13 +100,16 @@ ochat() {
   
   # Run ollama in background and show spinner
   local temp_file=$(mktemp)
-  ollama run "$model" "$prompt" > "$temp_file" 2>&1 &
+  # Run in subshell to avoid job control messages
+  (ollama run "$model" "$prompt" > "$temp_file" 2>&1) &
   local ollama_pid=$!
+  # Suppress job control messages
+  disown $ollama_pid 2>/dev/null
   
   # Show spinner while waiting
   _ollama_spinner $ollama_pid
   
-  # Wait for process to complete
+  # Wait for process to complete and suppress job control messages
   wait $ollama_pid 2>/dev/null
   
   # Display filtered and formatted response
