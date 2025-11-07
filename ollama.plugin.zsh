@@ -156,6 +156,86 @@ odo() {
   fi
 }
 
+# Function to execute a command with error capture
+# Usage: otry <command>
+otry() {
+  if [ "$#" -lt 1 ]; then
+    echo "Usage: otry <command>"
+    echo "Executes a command and captures error output for analysis"
+    return 1
+  fi
+  
+  local command="$*"
+  local temp_file=$(mktemp)
+  
+  echo "🔧 Executing: $command"
+  
+  # Execute the command, capturing both stdout and stderr
+  eval "$command" > "$temp_file" 2>&1
+  local exit_code=$?
+  
+  # Display the output
+  cat "$temp_file"
+  
+  # If there was an error, analyze it
+  if [[ $exit_code -ne 0 ]]; then
+    local error_output=$(cat "$temp_file")
+    
+    echo
+    read -q "REPLY?🤖 Error detected (exit code $exit_code). Want a solution using $OLLAMA_DEFAULT_MODEL? [y/N] "
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      echo "🔍 Analyzing command: '$command'..."
+      
+      # Build a prompt for the AI that includes the exit code, command and error output
+      local prompt="The shell command '$command' failed with exit code $exit_code.
+      
+Error output:
+$error_output
+
+Based on this information, explain what went wrong in one short sentence, then provide a single-line shell command to fix it. 
+
+Format your response exactly like this:
+EXPLANATION: <your explanation>
+COMMAND: <the command>"
+      
+      # Call Ollama and capture the response
+      local response
+      response=$(ollama run "$OLLAMA_DEFAULT_MODEL" "$prompt" 2>/dev/null | _ollama_filter_thinking | _ollama_format_response)
+      
+      # Extract explanation and command from the response
+      local explanation=$(echo "$response" | grep "EXPLANATION:" | sed 's/^EXPLANATION: //')
+      local command_to_run=$(echo "$response" | grep "COMMAND:" | sed 's/^COMMAND: //')
+      
+      echo -e "\n---"
+      echo "💡 Explanation: $explanation"
+      
+      if [[ -n "$command_to_run" ]]; then
+        echo -e "\n🔧 Suggested command:"
+        echo -e "\033[1;32m$command_to_run\033[0m"
+        read -q "REPLY2?Execute this command? [y/N] "
+        echo
+        if [[ $REPLY2 =~ ^[Yy]$ ]]; then
+          echo "🚀 Executing..."
+          # WARNING: eval is powerful but potentially dangerous.
+          # We use it here after two confirmations, but be aware of the risk.
+          eval "$command_to_run"
+        else
+          echo "Execution cancelled."
+        fi
+      else
+        echo "❌ Could not generate a fix command."
+      fi
+    fi
+  fi
+  
+  # Clean up
+  rm -f "$temp_file"
+  
+  # Return the original exit code
+  return $exit_code
+}
+
 # --- LOGIC FOR AUTOMATIC ERROR DETECTION ---
 
 # Function that runs BEFORE every command.
@@ -172,7 +252,7 @@ _ollama_check_error() {
   # 1. Do nothing if the command was successful (exit code 0).
   # 2. Do nothing if the last command was empty.
   # 3. Do nothing if the last command was one of our plugin commands to avoid loops.
-  if [[ $exit_code -eq 0 || -z "$OLLAMA_LAST_COMMAND" || "$OLLAMA_LAST_COMMAND" =~ ^(ochat|odo) ]]; then
+  if [[ $exit_code -eq 0 || -z "$OLLAMA_LAST_COMMAND" || "$OLLAMA_LAST_COMMAND" =~ ^(ochat|odo|otry) ]]; then
     return
   fi
 
@@ -192,14 +272,7 @@ Based on this exit code and the command, explain what likely went wrong in one s
 
 Format your response exactly like this:
 EXPLANATION: <your explanation>
-COMMAND: <the command>
-
-Common errors to consider:
-- Exit code 128: Git repository already exists, command not found, etc.
-- Exit code 1: General error, permission denied, invalid option, etc.
-- Exit code 2: Misuse of shell builtins, etc.
-- Exit code 126: Command not executable
-- Exit code 127: Command not found"
+COMMAND: <the command>"
   
   # Call Ollama and capture the response
   local response
