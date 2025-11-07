@@ -62,15 +62,14 @@ fi
 
 # 3. Interactive model selection
 echo "Select the default model to use:"
-PS3="Enter the model number: "
-select SELECTED_MODEL in "${MODELS[@]}"; do
-    if [[ -n "$SELECTED_MODEL" ]]; then
-        success "Selected model: $SELECTED_MODEL"
-        break
-    else
-        echo "Invalid choice. Please try again."
-    fi
+for i in "${!MODELS[@]}"; do
+    echo "$((i+1))) ${MODELS[i]}"
 done
+
+# Always use the first model as default when piped
+SELECTED_MODEL="${MODELS[0]}"
+echo "Using default model: $SELECTED_MODEL"
+echo "To select a different model, run: export OLLAMA_DEFAULT_MODEL=\"your-model-name\""
 
 # 4. Define paths
 ZSHRC_FILE="$HOME/.zshrc"
@@ -94,11 +93,24 @@ info "Updating .zshrc file..."
 if grep -q "plugins=(.*$PLUGIN_NAME" "$ZSHRC_FILE"; then
     info "Plugin '$PLUGIN_NAME' is already present in .zshrc."
 else
-    # Use sed to add the plugin to the plugins=(...) list
-    # This command is robust and handles spaces and parentheses
-    sed -i.bak "s/^plugins=(/plugins=($PLUGIN_NAME /" "$ZSHRC_FILE" && \
-    sed -i.bak "s/^plugins=($PLUGIN_NAME /&)/" "$ZSHRC_FILE"
-    success "Plugin '$PLUGIN_NAME' added to plugins list in .zshrc."
+    # Extract the current plugins line
+    PLUGINS_LINE=$(grep "^plugins=(" "$ZSHRC_FILE")
+    
+    if [ -n "$PLUGINS_LINE" ]; then
+        # Get the content inside parentheses
+        PLUGINS_CONTENT=$(echo "$PLUGINS_LINE" | sed 's/plugins=(//' | sed 's/)//')
+        
+        # Add our plugin to the beginning
+        NEW_PLUGINS_CONTENT="$PLUGIN_NAME $PLUGINS_CONTENT"
+        
+        # Replace the line with the updated plugins list
+        sed -i.bak "s/^plugins=(.*/plugins=($NEW_PLUGINS_CONTENT)/" "$ZSHRC_FILE"
+        success "Plugin '$PLUGIN_NAME' added to plugins list in .zshrc."
+    else
+        # If no plugins line found, add one
+        echo "plugins=($PLUGIN_NAME)" >> "$ZSHRC_FILE"
+        success "Plugin '$PLUGIN_NAME' added to .zshrc."
+    fi
 fi
 
 # Add environment variable if not already present
@@ -118,8 +130,13 @@ fi
 rm -f "$ZSHRC_FILE.bak"
 
 # 7. Reload configuration
-info "Reloading Zsh configuration..."
-source "$ZSHRC_FILE"
+if [ -n "$ZSH_VERSION" ]; then
+    info "Reloading Zsh configuration..."
+    source "$ZSHRC_FILE"
+else
+    info "Skipping Zsh configuration reload (not running in Zsh)."
+    info "Please restart your terminal or run 'source ~/.zshrc' to apply changes."
+fi
 
 echo "=========================================="
 success "Installation completed successfully!"
