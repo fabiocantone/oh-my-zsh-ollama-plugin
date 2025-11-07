@@ -47,7 +47,7 @@ ochat() {
   
   echo "🤖 [$model] $prompt"
   echo "---"
-  ollama run "$model" "$prompt"
+  ollama run "$model" "$prompt" --no-stream
 }
 
 # Function to ask Ollama for a command to execute
@@ -63,7 +63,7 @@ odo() {
   echo "🤖 [$model] How can I: $action"
   echo "---"
   local command_to_run
-  command_to_run=$(ollama run "$model" "Generate a single-line shell command to perform this action: \"$action\". Only output the raw command, with no explanation or markdown formatting like ```.")
+  command_to_run=$(ollama run "$model" "Generate a single-line shell command to perform this action: \"$action\". Only output the raw command, with no explanation or markdown formatting like ```." --no-stream)
   if [ -z "$command_to_run" ]; then
     echo "❌ Ollama could not generate a command."
     return 1
@@ -114,7 +114,7 @@ _ollama_check_error() {
   
   # Call Ollama and capture the response
   local response
-  response=$(ollama run "$OLLAMA_DEFAULT_MODEL" "$prompt" 2>/dev/null)
+  response=$(ollama run "$OLLAMA_DEFAULT_MODEL" "$prompt" 2>/dev/null --no-stream)
 
   # Extract explanation and command from the response
   local explanation=$(echo "$response" | grep "EXPLANATION:" | sed 's/^EXPLANATION: //')
