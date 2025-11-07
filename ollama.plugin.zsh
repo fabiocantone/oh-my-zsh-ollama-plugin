@@ -285,7 +285,26 @@ Quali azioni mi consigli? Spiega il problema in modo conciso e fornisci un coman
       echo "$response"
       
       # Try to extract a command from the response
-      local command_to_run=$(echo "$response" | grep -E '(`[^`]+`|"[^"]+"|'"'"'[^'"'"']+'"'"')' | head -1 | sed 's/^[^`"'\'']*[`"'\'']\([^`"'\'']*\)[`"'\''].*$/\1/')
+      local command_to_run=""
+      
+      # Try multiple patterns to extract a command
+      # Pattern 1: Look for code blocks with bash
+      command_to_run=$(echo "$response" | grep -A 1 "```bash" | grep -v "```bash" | grep -v "```" | head -1 | sed 's/^[[:space:]]*//')
+      
+      # Pattern 2: Look for any code block
+      if [[ -z "$command_to_run" ]]; then
+        command_to_run=$(echo "$response" | grep -E '```[^`]*```' | sed 's/```//g' | head -1 | sed 's/^[[:space:]]*//')
+      fi
+      
+      # Pattern 3: Look for commands in quotes
+      if [[ -z "$command_to_run" ]]; then
+        command_to_run=$(echo "$response" | grep -E '(`[^`]+`|"[^"]+"|'"'"'[^'"'"']+'"'"')' | head -1 | sed 's/^[^`"'\'']*[`"'\'']\([^`"'\'']*\)[`"'\''].*$/\1/')
+      fi
+      
+      # Pattern 4: Look for lines that start with common command prefixes
+      if [[ -z "$command_to_run" ]]; then
+        command_to_run=$(echo "$response" | grep -E '^(rm |git |gh |cd |ls |mkdir |cp |mv |sudo |npm |pip |docker |kubectl )' | head -1 | sed 's/^[[:space:]]*//')
+      fi
       
       if [[ -n "$command_to_run" ]]; then
         echo -e "\n🔧 Comando suggerito:"
@@ -298,6 +317,9 @@ Quali azioni mi consigli? Spiega il problema in modo conciso e fornisci un coman
         else
           echo "Esecuzione annullata."
         fi
+      else
+        echo -e "\n❌ Impossibile estrarre un comando dalla risposta."
+        echo "Puoi provare a eseguire manualmente uno dei comandi suggeriti sopra."
       fi
     fi
   fi
