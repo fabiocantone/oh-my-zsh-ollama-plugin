@@ -28,13 +28,23 @@ _ollama_models() {
 # Function for a quick chat with Ollama
 # Usage: ochat <model> <question>
 ochat() {
-  if [ "$#" -lt 2 ]; then
-    echo "Usage: ochat <model> <question>"
+  if [ "$#" -lt 1 ]; then
+    echo "Usage: ochat [model] <question>"
+    echo "If no model is specified, will use OLLAMA_DEFAULT_MODEL"
     return 1
   fi
-  local model="$1"
-  shift
+  
+  # Check if first argument is a model or part of the question
+  local model="$OLLAMA_DEFAULT_MODEL"
   local prompt="$*"
+  
+  # If more than 1 argument, assume first is model
+  if [ "$#" -gt 1 ]; then
+    model="$1"
+    shift
+    prompt="$*"
+  fi
+  
   echo "🤖 [$model] $prompt"
   echo "---"
   ollama run "$model" "$prompt"
@@ -100,9 +110,7 @@ _ollama_check_error() {
   echo "🔍 Analyzing command: '$OLLAMA_LAST_COMMAND'..."
   
   # Build a specific prompt for the AI
-  local prompt="The shell command '$OLLAMA_LAST_COMMAND' failed with exit code $exit_code. Explain the likely error in one short sentence, then provide a single-line shell command to fix it. Format your response like this:
-EXPLANATION: <your explanation>
-COMMAND: <the command>"
+  local prompt="The shell command '$OLLAMA_LAST_COMMAND' failed with exit code $exit_code. Explain the likely error in one short sentence, then provide a single-line shell command to fix it. Format your response like this:\nEXPLANATION: <your explanation>\nCOMMAND: <the command>"
   
   # Call Ollama and capture the response
   local response
