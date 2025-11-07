@@ -27,6 +27,10 @@ _ollama_models() {
 
 # Function to filter out "Thinking..." sections from Ollama output
 _ollama_filter_thinking() {
+  # Use a simple approach: remove control characters with sed, then filter thinking patterns with awk
+  sed 's/\x1b\[[0-9;]*[mGKHJ]//g; s/\x1b\[?[0-9;]*[a-zA-Z]//g; s/\x1b\[[0-9]*[nABCDRST]//g; s/\x1b\[K//g; s/\x1b\[=//g' | \
+  # Remove spinner characters
+  sed 's/[⠙⠹⠸⠼⠴⠦⠧⠇⠏]//g' | \
   # Remove job control messages (e.g., [2] 2691328)
   sed '/^\[[0-9]\+\] [0-9]\+$/d' | \
   # Remove job completion messages (e.g., [2]  + 2692426 done ...)
@@ -35,33 +39,25 @@ _ollama_filter_thinking() {
   awk '
     BEGIN { 
       after_done = 0
+      in_thinking = 0
     }
-    # Mark when we reach the end of thinking
+    # If we see "Thinking...", mark that we are in thinking section
+    /Thinking\.\.\./ {
+      in_thinking = 1
+      next
+    }
+    # If we see "...done thinking.", mark that we are done with thinking
     /\.\.\.done thinking\./ {
+      in_thinking = 0
       after_done = 1
       next
     }
-    # Before "...done thinking.", skip everything that looks like thinking
-    after_done == 0 {
-      # Skip lines that look like thinking
-      if (/^[Tt]hinking/ || /^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is/ || /^Lets/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is the/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/) {
-        next
-      }
-      # If we find a line that doesn't look like thinking, it might be the response
-      if (length($0) > 0 && !/^[0-9]+\. / && !/^\* / && !/^[A-Z][a-z]+ [a-z]+:/ && !/^[A-Z][a-z]+:/ && !/^Identify/ && !/^Perform/ && !/^Formulate/ && !/^Select/ && !/^Review/ && !/^The user/ && !/^This is/ && !/^Lets/ && !/^Alternative/ && !/^Start with/ && !/^I will/ && !/^No need/ && !/^Is the/ && !/^Is it/ && !/^Does it/ && !/^The final response/) {
-        after_done = 1
-        print
-        next
-      }
+    # Skip lines that look like thinking
+    in_thinking == 1 || /^[Tt]hinking/ || /^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is/ || /^Lets/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/ {
       next
     }
-    # After "...done thinking.", print everything except thinking patterns
-    after_done == 1 {
-      # Skip lines that still look like thinking
-      if (/^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is perfect/ || /^Lets/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is the/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/) {
-        next
-      }
-      # Print actual response lines
+    # Print actual response lines
+    {
       if (length($0) > 0) {
         print
       }
@@ -124,25 +120,11 @@ ochat() {
   echo "🤖 [$model] $prompt"
   echo "---"
   
-  # Run ollama in background and show spinner
-  local temp_file=$(mktemp)
-  # Run in subshell to avoid job control messages
-  (ollama run "$model" "$prompt" > "$temp_file" 2>&1) &
-  local ollama_pid=$!
-  # Suppress job control messages
-  disown $ollama_pid 2>/dev/null
-  
-  # Show spinner while waiting
-  _ollama_spinner $ollama_pid
-  
-  # Wait for process to complete and suppress job control messages
-  wait $ollama_pid 2>/dev/null
+  # Run ollama and capture output
+  local output=$(ollama run "$model" "$prompt" 2>&1)
   
   # Display filtered and formatted response
-  cat "$temp_file" | _ollama_filter_thinking | _ollama_format_response
-  
-  # Clean up
-  rm -f "$temp_file"
+  echo "$output" | _ollama_filter_thinking | _ollama_format_response
 }
 
 # Function to ask Ollama for a command to execute
@@ -246,10 +228,10 @@ add-zsh-hook precmd _ollama_check_error
 
 
 # --- Tab Completion ---
-_ochat_odo_completion() {
-  local -a models
-  models=($(_ollama_models))
-  _describe 'ollama models' models
-}
-compdef _ochat_odo_completion ochat
-compdef _ochat_odo_completion odo
+# _ochat_odo_completion() {
+#   local -a models
+#   models=($( _ollama_models ))
+#   _describe 'ollama models' models
+# }
+# compdef _ochat_odo_completion ochat
+# compdef _ochat_odo_completion odo
