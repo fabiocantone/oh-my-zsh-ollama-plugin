@@ -30,6 +30,38 @@ _ollama_filter_thinking() {
   sed '/^Thinking\.\.\.$/,/^\.\.\.done thinking\.$/d'
 }
 
+# Function to format Ollama response (remove markdown formatting)
+_ollama_format_response() {
+  # Remove markdown code blocks first (to avoid conflicts)
+  sed 's/```[^`]*```//g' | \
+  # Remove markdown bold (**text** -> text)
+  sed 's/\*\*\([^*]*\)\*\*/\1/g' | \
+  # Remove markdown italic (*text* -> text, but not **text**)
+  sed 's/\*\([^*][^*]*\)\*/\1/g' | \
+  # Remove markdown inline code
+  sed 's/`\([^`]*\)`/\1/g' | \
+  # Clean up multiple spaces
+  sed 's/  \+/ /g' | \
+  # Trim leading/trailing whitespace from each line
+  sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | \
+  # Remove empty lines
+  sed '/^$/d'
+}
+
+# Function to show animated spinner while waiting
+_ollama_spinner() {
+  local pid=$1
+  local spinstr='|/-\'
+  local temp
+  while ps -p $pid > /dev/null 2>&1; do
+    temp=${spinstr#?}
+    printf "\r💭 Thinking... %c" "$spinstr"
+    spinstr=$temp${spinstr%"$temp"}
+    sleep 0.1
+  done
+  printf "\r"
+}
+
 # Function for a quick chat with Ollama
 # Usage: ochat <model> <question>
 ochat() {
@@ -52,7 +84,23 @@ ochat() {
   
   echo "🤖 [$model] $prompt"
   echo "---"
-  ollama run "$model" "$prompt" | _ollama_filter_thinking
+  
+  # Run ollama in background and show spinner
+  local temp_file=$(mktemp)
+  ollama run "$model" "$prompt" > "$temp_file" 2>&1 &
+  local ollama_pid=$!
+  
+  # Show spinner while waiting
+  _ollama_spinner $ollama_pid
+  
+  # Wait for process to complete
+  wait $ollama_pid 2>/dev/null
+  
+  # Display filtered and formatted response
+  cat "$temp_file" | _ollama_filter_thinking | _ollama_format_response
+  
+  # Clean up
+  rm -f "$temp_file"
 }
 
 # Function to ask Ollama for a command to execute
@@ -68,7 +116,7 @@ odo() {
   echo "🤖 [$model] How can I: $action"
   echo "---"
   local command_to_run
-  command_to_run=$(ollama run "$model" "Generate a single-line shell command to perform this action: \"$action\". Only output the raw command, with no explanation or markdown formatting like \`\`\`." | _ollama_filter_thinking)
+  command_to_run=$(ollama run "$model" "Generate a single-line shell command to perform this action: \"$action\". Only output the raw command, with no explanation or markdown formatting like \`\`\`." | _ollama_filter_thinking | _ollama_format_response)
   if [ -z "$command_to_run" ]; then
     echo "❌ Ollama could not generate a command."
     return 1
@@ -118,7 +166,7 @@ _ollama_check_error() {
   
   # Call Ollama and capture the response
   local response
-  response=$(ollama run "$OLLAMA_DEFAULT_MODEL" "$prompt" 2>/dev/null | _ollama_filter_thinking)
+  response=$(ollama run "$OLLAMA_DEFAULT_MODEL" "$prompt" 2>/dev/null | _ollama_filter_thinking | _ollama_format_response)
 
   # Extract explanation and command from the response
   local explanation=$(echo "$response" | grep "EXPLANATION:" | sed 's/^EXPLANATION: //')
