@@ -29,18 +29,44 @@ _ollama_models() {
 _ollama_filter_thinking() {
   # Remove job control messages (e.g., [2] 2691328)
   sed '/^\[[0-9]\+\] [0-9]\+$/d' | \
-  # Remove job completion messages (e.g., [2]  + 2691328 done ...)
+  # Remove job completion messages (e.g., [2]  + 2692426 done ...)
   sed '/^\[[0-9]\+\]  \+[0-9]\+ done/d' | \
-  # Use awk to remove everything between "Thinking..." and "...done thinking."
+  # Use awk to filter: keep only lines after "...done thinking." and remove thinking patterns
   awk '
-    BEGIN { in_thinking = 0 }
-    /^[Tt]hinking/ { in_thinking = 1; next }
-    /\.\.\.done thinking\./ { in_thinking = 0; next }
-    in_thinking == 0 { print }
-  ' | \
-  # Remove any remaining lines that contain "Thinking" or "done thinking"
-  sed '/[Tt]hinking/d' | \
-  sed '/done thinking/d'
+    BEGIN { 
+      after_done = 0
+    }
+    # Mark when we reach the end of thinking
+    /\.\.\.done thinking\./ {
+      after_done = 1
+      next
+    }
+    # Before "...done thinking.", skip everything that looks like thinking
+    after_done == 0 {
+      # Skip lines that look like thinking
+      if (/^[Tt]hinking/ || /^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is/ || /^Let'"'"'s/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is the/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/) {
+        next
+      }
+      # If we find a line that doesn't look like thinking, it might be the response
+      if (length($0) > 0 && !/^[0-9]+\. / && !/^\* / && !/^[A-Z][a-z]+ [a-z]+:/ && !/^[A-Z][a-z]+:/ && !/^Identify/ && !/^Perform/ && !/^Formulate/ && !/^Select/ && !/^Review/ && !/^The user/ && !/^This is/ && !/^Let'"'"'s/ && !/^Alternative/ && !/^Start with/ && !/^I will/ && !/^No need/ && !/^Is the/ && !/^Is it/ && !/^Does it/ && !/^The final response/) {
+        after_done = 1
+        print
+        next
+      }
+      next
+    }
+    # After "...done thinking.", print everything except thinking patterns
+    after_done == 1 {
+      # Skip lines that still look like thinking
+      if (/^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is perfect/ || /^Let'"'"'s/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is the/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/) {
+        next
+      }
+      # Print actual response lines
+      if (length($0) > 0) {
+        print
+      }
+    }
+  '
 }
 
 # Function to format Ollama response (remove markdown formatting)
