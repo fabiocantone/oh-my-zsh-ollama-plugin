@@ -285,7 +285,7 @@ Quali azioni mi consigli? Spiega il problema in modo conciso e fornisci un coman
       echo "$response"
       
       # Try to extract a command from the response
-      local command_to_run=$(echo "$response" | grep -E '(`[^`]+`|"[^"]+"|'\'[^\'']+'\')' | head -1 | sed 's/^[^`"`'\'']*[`"`'\'']\([^`"`'\'']*\)[`"`'\''].*$/\1/')
+      local command_to_run=$(echo "$response" | grep -E '(`[^`]+`|"[^"]+"|'"'"'[^'"'"']+'"'"')' | head -1 | sed 's/^[^`"'\'']*[`"'\'']\([^`"'\'']*\)[`"'\''].*$/\1/')
       
       if [[ -n "$command_to_run" ]]; then
         echo -e "\n🔧 Comando suggerito:"
