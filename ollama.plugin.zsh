@@ -44,11 +44,11 @@ _ollama_filter_thinking() {
     # Before "...done thinking.", skip everything that looks like thinking
     after_done == 0 {
       # Skip lines that look like thinking
-      if (/^[Tt]hinking/ || /^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is/ || /^Let'"'"'s/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is the/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/) {
+      if (/^[Tt]hinking/ || /^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is/ || /^Lets/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is the/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/) {
         next
       }
       # If we find a line that doesn't look like thinking, it might be the response
-      if (length($0) > 0 && !/^[0-9]+\. / && !/^\* / && !/^[A-Z][a-z]+ [a-z]+:/ && !/^[A-Z][a-z]+:/ && !/^Identify/ && !/^Perform/ && !/^Formulate/ && !/^Select/ && !/^Review/ && !/^The user/ && !/^This is/ && !/^Let'"'"'s/ && !/^Alternative/ && !/^Start with/ && !/^I will/ && !/^No need/ && !/^Is the/ && !/^Is it/ && !/^Does it/ && !/^The final response/) {
+      if (length($0) > 0 && !/^[0-9]+\. / && !/^\* / && !/^[A-Z][a-z]+ [a-z]+:/ && !/^[A-Z][a-z]+:/ && !/^Identify/ && !/^Perform/ && !/^Formulate/ && !/^Select/ && !/^Review/ && !/^The user/ && !/^This is/ && !/^Lets/ && !/^Alternative/ && !/^Start with/ && !/^I will/ && !/^No need/ && !/^Is the/ && !/^Is it/ && !/^Does it/ && !/^The final response/) {
         after_done = 1
         print
         next
@@ -58,7 +58,7 @@ _ollama_filter_thinking() {
     # After "...done thinking.", print everything except thinking patterns
     after_done == 1 {
       # Skip lines that still look like thinking
-      if (/^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is perfect/ || /^Let'"'"'s/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is the/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/) {
+      if (/^[0-9]+\. / || /^\* / || /^Draft [0-9]/ || /^Identify/ || /^Perform/ || /^Formulate/ || /^Select/ || /^Review/ || /^The user/ || /^This is perfect/ || /^Lets/ || /^Alternative/ || /^Start with/ || /^I will/ || /^No need/ || /^Is the/ || /^Is it/ || /^Does it/ || /^The final response/ || /^[A-Z][a-z]+ [a-z]+:/ || /^[A-Z][a-z]+:/) {
         next
       }
       # Print actual response lines
