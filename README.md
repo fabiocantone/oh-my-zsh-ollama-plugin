@@ -1,0 +1,47 @@
+# Oh-My-Zsh Ollama Plugin
+
+An intelligent [Oh-My-Zsh](https://ohmyz.sh/) plugin that seamlessly integrates [Ollama](https://ollama.com/) into your command line.
+
+It provides:
+- A quick chat function (`ochat`).
+- A command generation and execution function (`odo`).
+- **Automatic error detection and suggestion of fixes.**
+
+![Demo](https://github.com/TUO_USERNAME/oh-my-zsh-ollama-plugin/assets/YOUR_ID/demo.gif) 
+<!-- Aggiungi un GIF o uno screenshot qui per renderlo più accattivante! -->
+
+## Prerequisites
+
+- [Zsh](https://www.zsh.org/)
+- [Oh-My-Zsh](https://ohmyz.sh/)
+- [Ollama](https://ollama.com/) installed and running (`ollama serve`)
+
+## Installation
+
+1.  Clone this repository into your custom plugins directory:
+
+    ```bash
+    git clone https://github.com/TUO_USERNAME/oh-my-zsh-ollama-plugin.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/ollama
+    ```
+
+2.  Enable the plugin by adding `ollama` to the plugins list in your `~/.zshrc` file:
+
+    ```zsh
+    plugins=(git ollama)
+    ```
+
+3.  Reload your Zsh configuration:
+
+    ```bash
+    source ~/.zshrc
+    ```
+
+## Usage
+
+### 1. Chat with Ollama (`ochat`)
+
+Ask a question to any of your installed models.
+
+```bash
+# Ask llama3 a question
+ochat llama3 "Explain quantum computing in simple terms"
