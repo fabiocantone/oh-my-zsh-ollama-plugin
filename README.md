@@ -8,7 +8,7 @@ It provides:
 - **Automatic error detection and suggestion of fixes.**
 
 ![Demo](https://github.com/TUO_USERNAME/oh-my-zsh-ollama-plugin/assets/YOUR_ID/demo.gif) 
-<!-- Aggiungi un GIF o uno screenshot qui per renderlo più accattivante! -->
+<!-- Add a GIF or screenshot here to make it more appealing! -->
 
 ## Prerequisites
 
@@ -17,6 +17,18 @@ It provides:
 - [Ollama](https://ollama.com/) installed and running (`ollama serve`)
 
 ## Installation
+
+The easiest way to install this plugin is by running our automatic installer. It will guide you through selecting a default model and will configure everything for you.
+
+### Automatic Installer (Recommended)
+
+Just run this command in your terminal:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fabiocantone/oh-my-zsh-ollama-plugin/main/install.sh | bash
+```
+
+### Manual installer
 
 1.  Clone this repository into your custom plugins directory:
 

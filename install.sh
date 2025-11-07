@@ -5,124 +5,124 @@
 # This script installs the oh-my-zsh-ollama-plugin and configures it.
 #=====================================================================================
 
-# --- Configurazione ---
-# Sostituisci con il tuo repository URL
+# --- Configuration ---
+# Replace with your repository URL
 REPO_URL="https://github.com/fabiocantone/oh-my-zsh-ollama-plugin.git"
 PLUGIN_NAME="ollama"
 
-# --- Colori per l'output ---
+# --- Colors for output ---
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-# --- Funzioni di supporto ---
+# --- Helper functions ---
 
-# Stampa un messaggio di errore ed esce
+# Print an error message and exit
 error_exit() {
-    echo -e "${RED}ERRORE: $1${NC}" >&2
+    echo -e "${RED}ERROR: $1${NC}" >&2
     exit 1
 }
 
-# Stampa un messaggio di successo
+# Print a success message
 success() {
     echo -e "${GREEN}$1${NC}"
 }
 
-# Stampa un messaggio informativo
+# Print an info message
 info() {
     echo -e "${YELLOW}$1${NC}"
 }
 
-# --- Inizio Installazione ---
+# --- Installation Start ---
 
 echo "=========================================="
 echo "  Oh-My-Zsh Ollama Plugin Installer"
 echo "=========================================="
 
-# 1. Verifica dei prerequisiti
-info "Verifica dei prerequisiti..."
-command -v zsh >/dev/null 2>&1 || error_exit "Zsh non è installato. Per favore, installalo prima."
-command -v git >/dev/null 2>&1 || error_exit "Git non è installato. Per favore, installarlo prima."
-command -v ollama >/dev/null 2>&1 || error_exit "Ollama non è installato. Per favore, installalo da https://ollama.com."
+# 1. Check prerequisites
+info "Checking prerequisites..."
+command -v zsh >/dev/null 2>&1 || error_exit "Zsh is not installed. Please install it first."
+command -v git >/dev/null 2>&1 || error_exit "Git is not installed. Please install it first."
+command -v ollama >/dev/null 2>&1 || error_exit "Ollama is not installed. Please install it from https://ollama.com."
 
-# Verifica se Ollama è in esecuzione
+# Check if Ollama is running
 if ! ollama list >/dev/null 2>&1; then
-    error_exit "Ollama non sembra essere in esecuzione. Avvialo con 'ollama serve' e riprova."
+    error_exit "Ollama doesn't seem to be running. Start it with 'ollama serve' and try again."
 fi
-success "Prerequisiti verificati."
+success "Prerequisites verified."
 
-# 2. Ottenere la lista dei modelli Ollama
-info "Recupero della lista dei modelli Ollama disponibili..."
+# 2. Get the list of Ollama models
+info "Retrieving list of available Ollama models..."
 MODELS=($(ollama list 2>/dev/null | tail -n +2 | awk '{print $1}'))
 
 if [ ${#MODELS[@]} -eq 0 ]; then
-    error_exit "Nessun modello Ollama trovato. Per favore, scarica almeno un modello (es. 'ollama pull llama3')."
+    error_exit "No Ollama models found. Please download at least one model (e.g. 'ollama pull llama3')."
 fi
 
-# 3. Selezione interattiva del modello
-echo "Seleziona il modello di default da usare:"
-PS3="Inserisci il numero del modello: "
+# 3. Interactive model selection
+echo "Select the default model to use:"
+PS3="Enter the model number: "
 select SELECTED_MODEL in "${MODELS[@]}"; do
     if [[ -n "$SELECTED_MODEL" ]]; then
-        success "Modello selezionato: $SELECTED_MODEL"
+        success "Selected model: $SELECTED_MODEL"
         break
     else
-        echo "Scelta non valida. Riprova."
+        echo "Invalid choice. Please try again."
     fi
 done
 
-# 4. Definizione dei percorsi
+# 4. Define paths
 ZSHRC_FILE="$HOME/.zshrc"
 OH_MY_ZSH_CUSTOM_DIR="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 PLUGIN_DIR="$OH_MY_ZSH_CUSTOM_DIR/plugins/$PLUGIN_NAME"
 
-# 5. Installazione/Aggiornamento del plugin
-info "Installazione del plugin in $PLUGIN_DIR..."
+# 5. Install/Update plugin
+info "Installing plugin to $PLUGIN_DIR..."
 if [ -d "$PLUGIN_DIR" ]; then
-    info "Directory del plugin esistente. Rimozione in corso..."
+    info "Existing plugin directory found. Removing..."
     rm -rf "$PLUGIN_DIR"
 fi
 
-git clone -q "$REPO_URL" "$PLUGIN_DIR" || error_exit "Impossibile clonare il repository del plugin."
-success "Plugin clonato con successo."
+git clone -q "$REPO_URL" "$PLUGIN_DIR" || error_exit "Failed to clone plugin repository."
+success "Plugin cloned successfully."
 
-# 6. Aggiunta del plugin a .zshrc
-info "Aggiornamento del file .zshrc..."
+# 6. Add plugin to .zshrc
+info "Updating .zshrc file..."
 
-# Aggiunge 'ollama' alla lista dei plugin se non è già presente
+# Add 'ollama' to plugins list if not already present
 if grep -q "plugins=(.*$PLUGIN_NAME" "$ZSHRC_FILE"; then
-    info "Plugin '$PLUGIN_NAME' è già presente in .zshrc."
+    info "Plugin '$PLUGIN_NAME' is already present in .zshrc."
 else
-    # Usa sed per aggiungere il plugin alla lista plugins=(...)
-    # Questo comando è robusto e gestisce spazi e parentesi
+    # Use sed to add the plugin to the plugins=(...) list
+    # This command is robust and handles spaces and parentheses
     sed -i.bak "s/^plugins=(/plugins=($PLUGIN_NAME /" "$ZSHRC_FILE" && \
     sed -i.bak "s/^plugins=($PLUGIN_NAME /&)/" "$ZSHRC_FILE"
-    success "Plugin '$PLUGIN_NAME' aggiunto alla lista dei plugin in .zshrc."
+    success "Plugin '$PLUGIN_NAME' added to plugins list in .zshrc."
 fi
 
-# Aggiunge la variabile d'ambiente se non è già presente
+# Add environment variable if not already present
 if grep -q "export OLLAMA_DEFAULT_MODEL" "$ZSHRC_FILE"; then
-    # Se esiste, la aggiorna
+    # If it exists, update it
     sed -i.bak "s/export OLLAMA_DEFAULT_MODEL=.*/export OLLAMA_DEFAULT_MODEL=\"$SELECTED_MODEL\"/" "$ZSHRC_FILE"
-    info "Variabile OLLAMA_DEFAULT_MODEL aggiornata in .zshrc."
+    info "OLLAMA_DEFAULT_MODEL variable updated in .zshrc."
 else
-    # Altrimenti, la aggiunge in fondo al file
+    # Otherwise, add it at the end of the file
     echo "" >> "$ZSHRC_FILE"
     echo "# Ollama Plugin Default Model" >> "$ZSHRC_FILE"
     echo "export OLLAMA_DEFAULT_MODEL=\"$SELECTED_MODEL\"" >> "$ZSHRC_FILE"
-    success "Variabile OLLAMA_DEFAULT_MODEL impostata in .zshrc."
+    success "OLLAMA_DEFAULT_MODEL variable set in .zshrc."
 fi
 
-# Rimuove il file di backup creato da sed
+# Remove the backup file created by sed
 rm -f "$ZSHRC_FILE.bak"
 
-# 7. Ricarica la configurazione
-info "Ricaricamento della configurazione di Zsh..."
+# 7. Reload configuration
+info "Reloading Zsh configuration..."
 source "$ZSHRC_FILE"
 
 echo "=========================================="
-success "Installazione completata con successo!"
+success "Installation completed successfully!"
 echo "=========================================="
-echo "Il plugin '$PLUGIN_NAME' è ora attivo e il modello di default è impostato su '$SELECTED_MODEL'."
-echo "Apri una nuova finestra del terminale per assicurarti che tutte le modifiche siano applicate correttamente."
+echo "The '$PLUGIN_NAME' plugin is now active and the default model is set to '$SELECTED_MODEL'."
+echo "Open a new terminal window to ensure all changes are applied correctly."
