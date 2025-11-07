@@ -63,7 +63,7 @@ odo() {
   echo "🤖 [$model] How can I: $action"
   echo "---"
   local command_to_run
-  command_to_run=$(ollama run "$model" "Generate a single-line shell command to perform this action: \"$action\". Only output the raw command, with no explanation or markdown formatting like ```." --no-stream
+  command_to_run=$(ollama run "$model" "Generate a single-line shell command to perform this action: \"$action\". Only output the raw command, with no explanation or markdown formatting like ```." --no-stream)
   if [ -z "$command_to_run" ]; then
     echo "❌ Ollama could not generate a command."
     return 1
