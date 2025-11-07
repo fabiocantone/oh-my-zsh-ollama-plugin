@@ -14,9 +14,7 @@
 OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-"llama3"}
 
 # --- Global Variables for Hooks ---
-
-# Variable to store the last command executed
-OLLAMA_LAST_COMMAND=""
+# Note: Variables are now handled locally in the _ollama_accept_line widget
 
 # --- Core Functions ---
 
@@ -237,80 +235,85 @@ COMMAND: <the command>"
 }
 
 # --- LOGIC FOR AUTOMATIC ERROR DETECTION ---
-
-# Function that runs BEFORE every command.
-# Its only purpose is to save the command that is about to be executed.
-_ollama_store_command() {
-  OLLAMA_LAST_COMMAND="$1"
-}
-
-# Function that runs AFTER every command (thanks to the precmd hook).
-# Here we check if there was an error.
-_ollama_check_error() {
-  local exit_code=$?
-  
-  # 1. Do nothing if the command was successful (exit code 0).
-  # 2. Do nothing if the last command was empty.
-  # 3. Do nothing if the last command was one of our plugin commands to avoid loops.
-  if [[ $exit_code -eq 0 || -z "$OLLAMA_LAST_COMMAND" || "$OLLAMA_LAST_COMMAND" =~ ^(ochat|odo|otry) ]]; then
-    return
-  fi
-
-  # Ask the user if they want a solution
-  read -q "REPLY?🤖 Error detected (exit code $exit_code). Want a solution using $OLLAMA_DEFAULT_MODEL? [y/N] "
-  echo
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    return
-  fi
-
-  echo "🔍 Analyzing command: '$OLLAMA_LAST_COMMAND'..."
-  
-  # Build a prompt for the AI that includes the exit code and command
-  local prompt="The shell command '$OLLAMA_LAST_COMMAND' failed with exit code $exit_code.
-  
-Based on this exit code and the command, explain what likely went wrong in one short sentence, then provide a single-line shell command to fix it. 
-
-Format your response exactly like this:
-EXPLANATION: <your explanation>
-COMMAND: <the command>"
-  
-  # Call Ollama and capture the response
-  local response
-  response=$(ollama run "$OLLAMA_DEFAULT_MODEL" "$prompt" 2>/dev/null | _ollama_filter_thinking | _ollama_format_response)
-
-  # Extract explanation and command from the response
-  local explanation=$(echo "$response" | grep "EXPLANATION:" | sed 's/^EXPLANATION: //')
-  local command_to_run=$(echo "$response" | grep "COMMAND:" | sed 's/^COMMAND: //')
-
-  echo -e "\n---"
-  echo "💡 Explanation: $explanation"
-
-  if [[ -n "$command_to_run" ]]; then
-    echo -e "\n🔧 Suggested command:"
-    echo -e "\033[1;32m$command_to_run\033[0m"
-    read -q "REPLY2?Execute this command? [y/N] "
-    echo
-    if [[ $REPLY2 =~ ^[Yy]$ ]]; then
-      echo "🚀 Executing..."
-      # WARNING: eval is powerful but potentially dangerous.
-      # We use it here after two confirmations, but be aware of the risk.
-      eval "$command_to_run"
-    else
-      echo "Execution cancelled."
-    fi
-  else
-    echo "❌ Could not generate a fix command."
-  fi
-}
+# Note: This section is now handled by the _ollama_accept_line widget above
 
 # --- Register Zsh Hooks ---
 
 # Load Zsh's hook system
 autoload -U add-zsh-hook
 
-# Register our functions to the preexec and precmd hooks
-add-zsh-hook preexec _ollama_store_command
-add-zsh-hook precmd _ollama_check_error
+# Override the accept-line widget to capture command output
+_ollama_accept_line() {
+  # Store the command
+  # OLLAMA_LAST_COMMAND="$BUFFER" # This line is removed
+  
+  # Create a temporary file to capture output
+  local temp_file=$(mktemp)
+  
+  # Execute the command with output capture
+  eval "$BUFFER" > "$temp_file" 2>&1
+  local exit_code=$?
+  
+  # Display the output
+  cat "$temp_file"
+  
+  # If there was an error, analyze it
+  if [[ $exit_code -ne 0 ]]; then
+    local error_output=$(cat "$temp_file")
+    
+    echo
+    read -q "REPLY?🤖 Errore rilevato (codice $exit_code). Vuoi una soluzione usando $OLLAMA_DEFAULT_MODEL? [y/N] "
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      echo "🔍 Analisi del comando: '$BUFFER'..." # Changed $OLLAMA_LAST_COMMAND to $BUFFER
+      
+      # Build a prompt for the AI
+      local prompt="Ho eseguito questo comando '$BUFFER' ed ho ricevuto questo errore: # Changed $OLLAMA_LAST_COMMAND to $BUFFER
+
+$error_output
+
+Exit code: $exit_code
+
+Quali azioni mi consigli? Spiega il problema in modo conciso e fornisci un comando per risolverlo."
+      
+      # Call Ollama and capture the response
+      local response
+      response=$(ollama run "$OLLAMA_DEFAULT_MODEL" "$prompt" 2>/dev/null | _ollama_filter_thinking | _ollama_format_response)
+      
+      echo -e "\n---"
+      echo "💡 Suggerimento:"
+      echo "$response"
+      
+      # Try to extract a command from the response
+      local command_to_run=$(echo "$response" | grep -E '(`[^`]+`|"[^"]+"|'\'[^\'']+'\')' | head -1 | sed 's/^[^`"`'\'']*[`"`'\'']\([^`"`'\'']*\)[`"`'\''].*$/\1/')
+      
+      if [[ -n "$command_to_run" ]]; then
+        echo -e "\n🔧 Comando suggerito:"
+        echo -e "\033[1;32m$command_to_run\033[0m"
+        read -q "REPLY2?Eseguire questo comando? [y/N] "
+        echo
+        if [[ $REPLY2 =~ ^[Yy]$ ]]; then
+          echo "🚀 Esecuzione in corso..."
+          eval "$command_to_run"
+        else
+          echo "Esecuzione annullata."
+        fi
+      fi
+    fi
+  fi
+  
+  # Clean up
+  rm -f "$temp_file"
+  
+  # Reset the buffer
+  BUFFER=""
+}
+
+# Create a new widget that uses our function
+zle -N _ollama_accept_line
+
+# Bind it to Enter key
+bindkey '^M' _ollama_accept_line
 
 
 # --- Tab Completion ---
