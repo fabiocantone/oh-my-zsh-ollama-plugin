@@ -18,37 +18,7 @@ OLLAMA_DEFAULT_MODEL=${OLLAMA_DEFAULT_MODEL:-"llama3"}
 # Variable to store the last command executed
 OLLAMA_LAST_COMMAND=""
 
-# Variable to store the last command's error output
-OLLAMA_LAST_ERROR=""
-
 # --- Core Functions ---
-
-# Function to execute a command and capture its output and error
-# This replaces direct command execution when the plugin is active
-_ollama_execute_with_capture() {
-  local command="$1"
-  local temp_file=$(mktemp)
-  
-  # Execute the command, capturing both stdout and stderr
-  eval "$command" > "$temp_file" 2>&1
-  local exit_code=$?
-  
-  # Store the output if there was an error
-  if [[ $exit_code -ne 0 ]]; then
-    OLLAMA_LAST_ERROR=$(cat "$temp_file")
-  else
-    OLLAMA_LAST_ERROR=""
-  fi
-  
-  # Display the output
-  cat "$temp_file"
-  
-  # Clean up
-  rm -f "$temp_file"
-  
-  # Return the original exit code
-  return $exit_code
-}
 
 # Returns the list of installed Ollama models
 _ollama_models() {
@@ -215,19 +185,21 @@ _ollama_check_error() {
 
   echo "🔍 Analyzing command: '$OLLAMA_LAST_COMMAND'..."
   
-  # Build a more specific prompt for the AI that includes the exit code and error output
+  # Build a prompt for the AI that includes the exit code and command
   local prompt="The shell command '$OLLAMA_LAST_COMMAND' failed with exit code $exit_code.
   
-Error output:
-$OLLAMA_LAST_ERROR
-
-Analyze this specific error and provide a solution. Explain what went wrong in one short sentence, then provide a single-line shell command to fix it. 
+Based on this exit code and the command, explain what likely went wrong in one short sentence, then provide a single-line shell command to fix it. 
 
 Format your response exactly like this:
 EXPLANATION: <your explanation>
 COMMAND: <the command>
 
-Focus on the actual error message and context, not just the exit code."
+Common errors to consider:
+- Exit code 128: Git repository already exists, command not found, etc.
+- Exit code 1: General error, permission denied, invalid option, etc.
+- Exit code 2: Misuse of shell builtins, etc.
+- Exit code 126: Command not executable
+- Exit code 127: Command not found"
   
   # Call Ollama and capture the response
   local response
@@ -265,27 +237,7 @@ autoload -U add-zsh-hook
 
 # Register our functions to the preexec and precmd hooks
 add-zsh-hook preexec _ollama_store_command
-
-# Override the accept-line widget to capture command output
-_ollama_accept_line() {
-  # Store the command
-  OLLAMA_LAST_COMMAND="$BUFFER"
-  
-  # Execute the command with our capture function
-  _ollama_execute_with_capture "$BUFFER"
-  
-  # Reset the buffer
-  BUFFER=""
-  
-  # Run the error check
-  _ollama_check_error
-}
-
-# Create a new widget that uses our function
-zle -N _ollama_accept_line
-
-# Bind it to Enter key
-bindkey '^M' _ollama_accept_line
+add-zsh-hook precmd _ollama_check_error
 
 
 # --- Tab Completion ---
