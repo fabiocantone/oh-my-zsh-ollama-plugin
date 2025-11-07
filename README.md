@@ -28,6 +28,20 @@ Just run this command in your terminal:
 curl -fsSL https://raw.githubusercontent.com/fabiocantone/oh-my-zsh-ollama-plugin/main/install.sh | bash
 ```
 
+This will use the first available model as default. If you want to specify a particular model, you can pass it as a parameter:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fabiocantone/oh-my-zsh-ollama-plugin/main/install.sh | bash -s glm-4.6:cloud
+```
+
+Replace `glm-4.6:cloud` with the model name of your choice.
+
+After installation, you can always change the default model by editing the `OLLAMA_DEFAULT_MODEL` variable in your `~/.zshrc` file or by running:
+
+```bash
+export OLLAMA_DEFAULT_MODEL="your-model-name"
+```
+
 ### Manual installer
 
 1.  Clone this repository into your custom plugins directory:
@@ -57,3 +71,4 @@ Ask a question to any of your installed models.
 ```bash
 # Ask llama3 a question
 ochat llama3 "Explain quantum computing in simple terms"
+```

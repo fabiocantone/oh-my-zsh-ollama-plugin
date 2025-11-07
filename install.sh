@@ -66,10 +66,17 @@ for i in "${!MODELS[@]}"; do
     echo "$((i+1))) ${MODELS[i]}"
 done
 
-# Always use the first model as default when piped
-SELECTED_MODEL="${MODELS[0]}"
-echo "Using default model: $SELECTED_MODEL"
-echo "To select a different model, run: export OLLAMA_DEFAULT_MODEL=\"your-model-name\""
+# Check if a model was provided as a parameter
+if [ $# -gt 0 ] && [[ " ${MODELS[@]} " =~ " $1 " ]]; then
+    SELECTED_MODEL="$1"
+    success "Using provided model: $SELECTED_MODEL"
+else
+    # Always use the first model as default when piped
+    SELECTED_MODEL="${MODELS[0]}"
+    echo "Using default model: $SELECTED_MODEL"
+    echo "To select a different model, run: curl -fsSL https://raw.githubusercontent.com/fabiocantone/oh-my-zsh-ollama-plugin/main/install.sh | bash -s your-model-name"
+    echo "Or update it later with: export OLLAMA_DEFAULT_MODEL=\"your-model-name\""
+fi
 
 # 4. Define paths
 ZSHRC_FILE="$HOME/.zshrc"
